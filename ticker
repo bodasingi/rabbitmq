@@ -1,0 +1,67 @@
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+// EventEmitter is a struct that represents the event emitter.
+type EventEmitter struct {
+	events chan string
+	stop   chan bool
+}
+
+// NewEventEmitter creates a new EventEmitter instance.
+func NewEventEmitter() *EventEmitter {
+	return &EventEmitter{
+		events: make(chan string),
+		stop:   make(chan bool),
+	}
+}
+
+// Start starts the event emission goroutine.
+func (e *EventEmitter) Start(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				e.events <- "Event Triggered"
+			case <-e.stop:
+				return
+			}
+		}
+	}()
+}
+
+// Stop stops the event emission goroutine.
+func (e *EventEmitter) Stop() {
+	e.stop <- true
+	close(e.events)
+	close(e.stop)
+}
+
+func main() {
+	eventEmitter := NewEventEmitter()
+
+	// Start emitting events every 2 seconds
+	eventEmitter.Start(2 * time.Second)
+
+	// Listen for events in a separate goroutine
+	go func() {
+		for {
+			select {
+			case event := <-eventEmitter.events:
+				fmt.Println(event)
+			}
+		}
+	}()
+
+	// Let the program run for 10 seconds
+	time.Sleep(10 * time.Second)
+
+	// Stop emitting events
+	eventEmitter.Stop()
+}
